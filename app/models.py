@@ -10,6 +10,7 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(64))
     first_name: Mapped[str] = mapped_column(String(64), default="Боец")
     photo_url: Mapped[str | None]
+    referred_by: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 class Goal(Base):
@@ -19,6 +20,7 @@ class Goal(Base):
     addiction_type: Mapped[str] = mapped_column(String(16))
     custom_label: Mapped[str | None] = mapped_column(String(60))
     start_date: Mapped[date]
+    started_at: Mapped[datetime | None] = mapped_column(DateTime)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
@@ -56,3 +58,8 @@ class RehabCenter(Base):
     description: Mapped[str | None] = mapped_column(Text)
     tier: Mapped[str] = mapped_column(String(16), default="free")
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+class PendingRef(Base):
+    __tablename__ = "pending_refs"
+    tg_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    referrer_id: Mapped[int] = mapped_column(BigInteger)
