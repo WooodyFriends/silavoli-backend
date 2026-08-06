@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
@@ -6,6 +7,7 @@ from aiogram.types import Update
 from .config import settings
 from .db import Base, engine
 from .bot import bot, dp
+from .notifications import notify_loop
 from .routers import auth, friends, habits, me
 
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +29,9 @@ async def lifespan(app: FastAPI):
             logging.info("bot username: %s", bot_me.username)
     except Exception as e:
         logging.warning("get_me: %s", e)
+    task = asyncio.create_task(notify_loop())
     yield
+    task.cancel()
 
 app = FastAPI(title="Сила воли API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_list,
