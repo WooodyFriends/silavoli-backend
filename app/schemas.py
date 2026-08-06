@@ -19,6 +19,7 @@ class NameIn(BaseModel):
 class TzIn(BaseModel):
     tz_offset: int
     notify_hour: int | None = None
+    notify_minute: int | None = None
     notify_enabled: bool | None = None
 
 class GoalIn(BaseModel):
