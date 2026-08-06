@@ -7,6 +7,7 @@ TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 class AuthIn(BaseModel):
     init_data: str = Field(min_length=10)
+    start_param: str | None = None  # параметр из Mini App deep link
 
 class AuthOut(BaseModel):
     token: str
