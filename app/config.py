@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     mini_app_url: str = ""
     bot_username: str = ""
     cors_origins: str = "*"
+    premium_price_stars: int = 250
 
     model_config = {"env_file": ".env"}
 
