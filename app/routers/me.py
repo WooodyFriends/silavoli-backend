@@ -79,7 +79,10 @@ async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(
 
 @router.get("/invite")
 async def invite(user: User = Depends(get_current_user)):
-    return {"link": f"https://t.me/{settings.bot_username}?start=ref_{user.tg_id}"}
+    # Ссылка на Mini App с параметром ref_=tg_id
+    # Telegram откроет приложение и передаст start_param
+    short_name = "silavoli"  # короткое имя из BotFather → Configure Mini App
+    return {"link": f"https://t.me/{settings.bot_username}/{short_name}?startapp=ref_{user.tg_id}"}
 
 @router.post("/goal", response_model=GoalOut, status_code=201)
 async def add_goal(body: GoalIn, user: User = Depends(get_current_user),
