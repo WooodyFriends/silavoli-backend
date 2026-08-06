@@ -1,3 +1,4 @@
+import time as _time
 from datetime import date, datetime, time, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -11,24 +12,31 @@ from ..services import achievements_for, compute_streak
 
 router = APIRouter(prefix="/api/me", tags=["me"])
 
-def _started_at(sd: date, st: str | None) -> datetime:
-    now = datetime.now()
-    if st:
-        h, m = map(int, st.split(":"))
-        dt = datetime.combine(sd, time(h, m))
-    elif sd == date.today():
-        dt = now
-    else:
-        dt = datetime.combine(sd, time.min)
-    return dt if dt < now else now
 
-def _started(g: Goal) -> datetime:
-    return g.started_at or datetime.combine(g.start_date, time.min)
+def _resolve_ts(sd: date, ts: int | None) -> int:
+    """Unix timestamp старта. Не передан — ставим сейчас (для старых целей — полночь)."""
+    if ts:
+        return int(ts)
+    if sd == date.today():
+        return int(_time.time())
+    return int(datetime.combine(sd, time.min).timestamp())
+
+
+def _started_dt(g: Goal) -> datetime:
+    if g.started_at_ts:
+        return datetime.fromtimestamp(g.started_at_ts)
+    if g.started_at:
+        return g.started_at
+    return datetime.combine(g.start_date, time.min)
+
 
 def _goal_out(g: Goal) -> GoalOut:
-    return GoalOut(id=g.id, addiction_type=g.addiction_type, custom_label=g.custom_label,
-                   start_date=g.start_date, started_at=_started(g),
-                   days_clean=max((datetime.now() - _started(g)).days, 0))
+    return GoalOut(id=g.id, addiction_type=g.addiction_type,
+                   custom_label=g.custom_label, start_date=g.start_date,
+                   started_at=_started_dt(g),
+                   started_at_ts=g.started_at_ts or int(_started_dt(g).timestamp()),
+                   days_clean=max((datetime.now() - _started_dt(g)).days, 0))
+
 
 @router.get("", response_model=MeOut)
 async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -73,16 +81,17 @@ async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(
                      best_streak=max(streaks.values(), default=0),
                      friends_count=int(friends_count),
                      started=min((g.start_date for g in goals), default=None))
+
     return MeOut(name=user.first_name, goals=goals_out, streaks=streaks,
                  habits_today=habits_today, achievements=sorted(earned),
                  stats=stats, week=week)
 
+
 @router.get("/invite")
 async def invite(user: User = Depends(get_current_user)):
-    # Ссылка на Mini App с параметром ref_=tg_id
-    # Telegram откроет приложение и передаст start_param
-    short_name = "silavoli"  # короткое имя из BotFather → Configure Mini App
+    short_name = "silavoli"
     return {"link": f"https://t.me/{settings.bot_username}/{short_name}?startapp=ref_{user.tg_id}"}
+
 
 @router.post("/goal", response_model=GoalOut, status_code=201)
 async def add_goal(body: GoalIn, user: User = Depends(get_current_user),
@@ -92,43 +101,52 @@ async def add_goal(body: GoalIn, user: User = Depends(get_current_user),
                            Goal.addiction_type == body.addiction_type))).scalars().first()
     if dup:
         raise HTTPException(409, "goal already active")
-    sd = body.start_date or date.today()
+    sd = date.fromtimestamp(body.started_at_ts) if body.started_at_ts else (body.start_date or date.today())
+    ts = _resolve_ts(sd, body.started_at_ts)
     goal = Goal(user_id=user.id, addiction_type=body.addiction_type,
                 custom_label=body.custom_label, start_date=sd,
-                started_at=_started_at(sd, body.start_time))
+                started_at=datetime.fromtimestamp(ts),
+                started_at_ts=ts)
     db.add(goal)
     await db.commit()
     await db.refresh(goal)
     return _goal_out(goal)
+
 
 @router.post("/goal/{goal_id}/restart", response_model=GoalOut)
 async def restart_goal(goal_id: int, body: RestartIn | None = None,
                        user: User = Depends(get_current_user),
                        db: AsyncSession = Depends(get_db)):
     goal = (await db.execute(
-        select(Goal).where(Goal.id == goal_id, Goal.user_id == user.id))).scalar_one_or_none()
+        select(Goal).where(Goal.id == goal_id,
+                           Goal.user_id == user.id))).scalar_one_or_none()
     if not goal:
         raise HTTPException(404, "goal not found")
     goal.active = False
-    st = body.start_time if body else None
+    ts_in = body.started_at_ts if body else None
+    ts = _resolve_ts(date.today(), ts_in)
     new_goal = Goal(user_id=user.id, addiction_type=goal.addiction_type,
                     custom_label=goal.custom_label, start_date=date.today(),
-                    started_at=_started_at(date.today(), st))
+                    started_at=datetime.fromtimestamp(ts),
+                    started_at_ts=ts)
     db.add(new_goal)
     await db.commit()
     await db.refresh(new_goal)
     return _goal_out(new_goal)
 
+
 @router.delete("/goal/{goal_id}", status_code=204)
 async def drop_goal(goal_id: int, user: User = Depends(get_current_user),
                     db: AsyncSession = Depends(get_db)):
     goal = (await db.execute(
-        select(Goal).where(Goal.id == goal_id, Goal.user_id == user.id))).scalar_one_or_none()
+        select(Goal).where(Goal.id == goal_id,
+                           Goal.user_id == user.id))).scalar_one_or_none()
     if not goal:
         raise HTTPException(404, "goal not found")
     goal.active = False
     await db.commit()
     return None
+
 
 @router.patch("/name")
 async def set_name(body: NameIn, user: User = Depends(get_current_user),
