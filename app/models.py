@@ -21,6 +21,7 @@ class Goal(Base):
     custom_label: Mapped[str | None] = mapped_column(String(60))
     start_date: Mapped[date]
     started_at: Mapped[datetime | None] = mapped_column(DateTime)
+    started_at_ts: Mapped[int | None] = mapped_column(BigInteger)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
