@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_db
-from ..models import User
+from ..models import Friendship, PendingRef, User
 from ..schemas import AuthIn, AuthOut
 from ..security import AuthError, issue_jwt, validate_init_data
 
@@ -16,14 +16,21 @@ async def session(body: AuthIn, db: AsyncSession = Depends(get_db)):
         raise HTTPException(403, str(e))
     user = (await db.execute(select(User).where(User.tg_id == tg_user["id"]))).scalar_one_or_none()
     if user is None:
-        user = User(tg_id=tg_user["id"],
-                    username=tg_user.get("username"),
+        user = User(tg_id=tg_user["id"], username=tg_user.get("username"),
                     first_name=tg_user.get("first_name", "Боец"),
                     photo_url=(tg_user.get("photo") or {}).get("small_url"))
         db.add(user)
+        await db.flush()
+        ref = (await db.execute(
+            select(PendingRef).where(PendingRef.tg_id == tg_user["id"]))).scalar_one_or_none()
+        if ref and ref.referrer_id != user.tg_id:
+            user.referred_by = ref.referrer_id
+            db.add(Friendship(user_id=user.id, friend_id=ref.referrer_id, status="accepted"))
+            db.add(Friendship(user_id=ref.referrer_id, friend_id=user.id, status="accepted"))
+            await db.delete(ref)
     else:
         user.first_name = tg_user.get("first_name", user.first_name)
         user.username = tg_user.get("username", user.username)
     await db.commit()
     await db.refresh(user)
-    return AuthOut(token=issue_jwt(user.tg_id), name=user.first_name)
+    return AuthOut(token=issue_jwt(user.tg_id), name=user.first_name, user_id=user.tg_id)
