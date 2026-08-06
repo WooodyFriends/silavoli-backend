@@ -16,6 +16,11 @@ class AuthOut(BaseModel):
 class NameIn(BaseModel):
     name: str = Field(min_length=1, max_length=40)
 
+class TzIn(BaseModel):
+    tz_offset: int
+    notify_hour: int | None = None
+    notify_enabled: bool | None = None
+
 class GoalIn(BaseModel):
     addiction_type: str = Field(pattern=ADDICTION_PATTERN)
     custom_label: str | None = Field(default=None, max_length=60)
