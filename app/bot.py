@@ -37,7 +37,7 @@ async def start_ref(message: Message, command: CommandObject):
                     else:
                         db.add(PendingRef(tg_id=message.from_user.id, referrer_id=referrer))
                     await db.commit()
-                await message.answer("🤝 Ты по приглашению друга — теперь вы в одной команде!")
+                await message.answer("🤝 Ты пришёл по приглашению друга — теперь вы в одной команде!")
         except ValueError:
             pass
     await _welcome(message)
