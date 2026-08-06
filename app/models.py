@@ -16,6 +16,7 @@ class User(Base):
     notify_minute: Mapped[int | None] = mapped_column(Integer, default=0)
     notify_enabled: Mapped[bool | None] = mapped_column(Boolean, default=True)
     last_notify_date: Mapped[date | None] = mapped_column(Date)
+    premium_until: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 class Goal(Base):
