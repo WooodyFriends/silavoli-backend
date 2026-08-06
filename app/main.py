@@ -6,7 +6,7 @@ from aiogram.types import Update
 from .config import settings
 from .db import Base, engine
 from .bot import bot, dp
-from .routers import auth, habits, me
+from .routers import auth, friends, habits, me
 
 logging.basicConfig(level=logging.INFO)
 
@@ -20,6 +20,13 @@ async def lifespan(app: FastAPI):
             logging.info("webhook set")
         except Exception as e:
             logging.warning("webhook: %s", e)
+    try:
+        bot_me = await bot.get_me()
+        if not settings.bot_username:
+            settings.bot_username = bot_me.username
+            logging.info("bot username: %s", bot_me.username)
+    except Exception as e:
+        logging.warning("get_me: %s", e)
     yield
 
 app = FastAPI(title="Сила воли API", lifespan=lifespan)
@@ -38,3 +45,4 @@ async def tg_webhook(request: Request):
 app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(habits.router)
+app.include_router(friends.router)
