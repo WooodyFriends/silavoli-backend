@@ -8,7 +8,7 @@ from .config import settings
 from .db import Base, engine
 from .bot import bot, dp
 from .notifications import notify_loop
-from .routers import auth, friends, habits, me
+from .routers import auth, friends, habits, me, premium
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,3 +50,4 @@ app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(habits.router)
 app.include_router(friends.router)
+app.include_router(premium.router)
