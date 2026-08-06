@@ -98,6 +98,8 @@ async def set_tz(body: TzIn, user: User = Depends(get_current_user),
     user.tz_offset = body.tz_offset
     if body.notify_hour is not None:
         user.notify_hour = body.notify_hour
+    if body.notify_minute is not None:
+        user.notify_minute = body.notify_minute
     if body.notify_enabled is not None:
         user.notify_enabled = body.notify_enabled
     await db.commit()
