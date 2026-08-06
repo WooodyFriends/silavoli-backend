@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 HABIT_PATTERN = r"^(steps|sport|read|water|sleep|calm|nosugar|outdoor)$"
 ADDICTION_PATTERN = r"^(smoke|alcohol|drugs|gamble|custom)$"
+TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 class AuthIn(BaseModel):
     init_data: str = Field(min_length=10)
@@ -19,6 +20,10 @@ class GoalIn(BaseModel):
     addiction_type: str = Field(pattern=ADDICTION_PATTERN)
     custom_label: str | None = Field(default=None, max_length=60)
     start_date: date | None = None
+    start_time: str | None = Field(default=None, pattern=TIME_PATTERN)
+
+class RestartIn(BaseModel):
+    start_time: str | None = Field(default=None, pattern=TIME_PATTERN)
 
 class GoalOut(BaseModel):
     id: int
