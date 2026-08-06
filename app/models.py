@@ -13,6 +13,7 @@ class User(Base):
     referred_by: Mapped[int | None] = mapped_column(BigInteger)
     tz_offset: Mapped[int | None] = mapped_column(Integer, default=3)
     notify_hour: Mapped[int | None] = mapped_column(Integer, default=20)
+    notify_minute: Mapped[int | None] = mapped_column(Integer, default=0)
     notify_enabled: Mapped[bool | None] = mapped_column(Boolean, default=True)
     last_notify_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
