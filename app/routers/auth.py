@@ -30,33 +30,41 @@ async def session(body: AuthIn, db: AsyncSession = Depends(get_db)):
         user.first_name = tg_user.get("first_name", user.first_name)
         user.username = tg_user.get("username", user.username)
 
-    # 2. Проверяем приглашение
-    ref = (await db.execute(
-        select(PendingRef).where(PendingRef.tg_id == tg_user["id"])
-    )).scalar_one_or_none()
+    # 2. Новый механизм: start_param из Mini App
+    referrer_tg_id = None
+    if body.start_param and body.start_param.startswith("ref_"):
+        try:
+            referrer_tg_id = int(body.start_param[4:])
+        except ValueError:
+            pass
 
-    if ref and ref.referrer_id != user.tg_id:
-        # ВАЖНО: ref.referrer_id — это tg_id, ищем по нему user
+    # Фоллбек на старый механизм (через бота)
+    if referrer_tg_id is None:
+        ref = (await db.execute(
+            select(PendingRef).where(PendingRef.tg_id == tg_user["id"])
+        )).scalar_one_or_none()
+        if ref and ref.referrer_id != user.tg_id:
+            referrer_tg_id = ref.referrer_id
+            await db.delete(ref)
+
+    # 3. Создаём дружбу, если есть реферер
+    if referrer_tg_id and referrer_tg_id != user.tg_id:
         referrer_user = (await db.execute(
-            select(User).where(User.tg_id == ref.referrer_id)
+            select(User).where(User.tg_id == referrer_tg_id)
         )).scalar_one_or_none()
 
         if referrer_user:
-            # Проверяем, нет ли уже такой дружбы
             already = (await db.execute(
                 select(Friendship).where(Friendship.user_id == user.id,
                                          Friendship.friend_id == referrer_user.id)
             )).scalar_one_or_none()
 
             if not already:
-                # Дружба в обе стороны
                 user.referred_by = referrer_user.tg_id
                 db.add(Friendship(user_id=user.id, friend_id=referrer_user.id,
                                   status="accepted"))
                 db.add(Friendship(user_id=referrer_user.id, friend_id=user.id,
                                   status="accepted"))
-        # Удаляем использованное приглашение
-        await db.delete(ref)
 
     await db.commit()
     await db.refresh(user)
