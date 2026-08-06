@@ -7,14 +7,13 @@ from ..config import settings
 from ..db import get_db
 from ..deps import get_current_user
 from ..models import Friendship, Goal, HabitLog, User, UserAchievement
-from ..schemas import GoalIn, GoalOut, MeOut, NameIn, RestartIn, StatsOut
+from ..schemas import GoalIn, GoalOut, MeOut, NameIn, RestartIn, StatsOut, TzIn
 from ..services import achievements_for, compute_streak
 
 router = APIRouter(prefix="/api/me", tags=["me"])
 
 
 def _resolve_ts(sd: date, ts: int | None) -> int:
-    """Unix timestamp старта. Не передан — ставим сейчас (для старых целей — полночь)."""
     if ts:
         return int(ts)
     if sd == date.today():
@@ -91,6 +90,18 @@ async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(
 async def invite(user: User = Depends(get_current_user)):
     short_name = "silavoli"
     return {"link": f"https://t.me/{settings.bot_username}/{short_name}?startapp=ref_{user.tg_id}"}
+
+
+@router.patch("/tz")
+async def set_tz(body: TzIn, user: User = Depends(get_current_user),
+                 db: AsyncSession = Depends(get_db)):
+    user.tz_offset = body.tz_offset
+    if body.notify_hour is not None:
+        user.notify_hour = body.notify_hour
+    if body.notify_enabled is not None:
+        user.notify_enabled = body.notify_enabled
+    await db.commit()
+    return {"ok": True}
 
 
 @router.post("/goal", response_model=GoalOut, status_code=201)
