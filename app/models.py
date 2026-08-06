@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -11,6 +11,10 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(64), default="Боец")
     photo_url: Mapped[str | None]
     referred_by: Mapped[int | None] = mapped_column(BigInteger)
+    tz_offset: Mapped[int | None] = mapped_column(Integer, default=3)
+    notify_hour: Mapped[int | None] = mapped_column(Integer, default=20)
+    notify_enabled: Mapped[bool | None] = mapped_column(Boolean, default=True)
+    last_notify_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 class Goal(Base):
