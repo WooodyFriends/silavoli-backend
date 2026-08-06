@@ -21,16 +21,23 @@ async def session(body: AuthIn, db: AsyncSession = Depends(get_db)):
                     photo_url=(tg_user.get("photo") or {}).get("small_url"))
         db.add(user)
         await db.flush()
-        ref = (await db.execute(
-            select(PendingRef).where(PendingRef.tg_id == tg_user["id"]))).scalar_one_or_none()
-        if ref and ref.referrer_id != user.tg_id:
-            user.referred_by = ref.referrer_id
-            db.add(Friendship(user_id=user.id, friend_id=ref.referrer_id, status="accepted"))
-            db.add(Friendship(user_id=ref.referrer_id, friend_id=user.id, status="accepted"))
-            await db.delete(ref)
     else:
         user.first_name = tg_user.get("first_name", user.first_name)
         user.username = tg_user.get("username", user.username)
+
+    # Приглашение: работает и для новых, и для уже зарегистрированных
+    ref = (await db.execute(
+        select(PendingRef).where(PendingRef.tg_id == tg_user["id"]))).scalar_one_or_none()
+    if ref and ref.referrer_id != user.tg_id:
+        already = (await db.execute(
+            select(Friendship).where(Friendship.user_id == user.id,
+                                     Friendship.friend_id == ref.referrer_id))).scalar_one_or_none()
+        if not already:
+            user.referred_by = ref.referrer_id
+            db.add(Friendship(user_id=user.id, friend_id=ref.referrer_id, status="accepted"))
+            db.add(Friendship(user_id=ref.referrer_id, friend_id=user.id, status="accepted"))
+        await db.delete(ref)
+
     await db.commit()
     await db.refresh(user)
     return AuthOut(token=issue_jwt(user.tg_id), name=user.first_name, user_id=user.tg_id)
