@@ -6,10 +6,21 @@ from ..config import settings
 from ..db import get_db
 from ..deps import get_current_user
 from ..models import Friendship, Goal, HabitLog, User, UserAchievement
-from ..schemas import GoalIn, GoalOut, MeOut, NameIn, StatsOut
+from ..schemas import GoalIn, GoalOut, MeOut, NameIn, RestartIn, StatsOut
 from ..services import achievements_for, compute_streak
 
 router = APIRouter(prefix="/api/me", tags=["me"])
+
+def _started_at(sd: date, st: str | None) -> datetime:
+    now = datetime.now()
+    if st:
+        h, m = map(int, st.split(":"))
+        dt = datetime.combine(sd, time(h, m))
+    elif sd == date.today():
+        dt = now
+    else:
+        dt = datetime.combine(sd, time.min)
+    return dt if dt < now else now
 
 def _started(g: Goal) -> datetime:
     return g.started_at or datetime.combine(g.start_date, time.min)
@@ -36,6 +47,11 @@ async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(
     streaks = {h: compute_streak(days, date.today()) for h, days in by_habit.items()}
     habits_today = sorted(h for h, days in by_habit.items() if date.today() in days)
 
+    week = []
+    for i in range(6, -1, -1):
+        d = date.today() - timedelta(days=i)
+        week.append(sum(1 for days in by_habit.values() if d in days))
+
     total_checkins = (await db.execute(
         select(func.count()).where(HabitLog.user_id == user.id))).scalar() or 0
     friends_count = (await db.execute(
@@ -58,7 +74,8 @@ async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(
                      friends_count=int(friends_count),
                      started=min((g.start_date for g in goals), default=None))
     return MeOut(name=user.first_name, goals=goals_out, streaks=streaks,
-                 habits_today=habits_today, achievements=sorted(earned), stats=stats)
+                 habits_today=habits_today, achievements=sorted(earned),
+                 stats=stats, week=week)
 
 @router.get("/invite")
 async def invite(user: User = Depends(get_current_user)):
@@ -73,25 +90,27 @@ async def add_goal(body: GoalIn, user: User = Depends(get_current_user),
     if dup:
         raise HTTPException(409, "goal already active")
     sd = body.start_date or date.today()
-    started = datetime.now() if sd == date.today() else datetime.combine(sd, time.min)
     goal = Goal(user_id=user.id, addiction_type=body.addiction_type,
-                custom_label=body.custom_label, start_date=sd, started_at=started)
+                custom_label=body.custom_label, start_date=sd,
+                started_at=_started_at(sd, body.start_time))
     db.add(goal)
     await db.commit()
     await db.refresh(goal)
     return _goal_out(goal)
 
 @router.post("/goal/{goal_id}/restart", response_model=GoalOut)
-async def restart_goal(goal_id: int, user: User = Depends(get_current_user),
+async def restart_goal(goal_id: int, body: RestartIn | None = None,
+                       user: User = Depends(get_current_user),
                        db: AsyncSession = Depends(get_db)):
     goal = (await db.execute(
         select(Goal).where(Goal.id == goal_id, Goal.user_id == user.id))).scalar_one_or_none()
     if not goal:
         raise HTTPException(404, "goal not found")
     goal.active = False
+    st = body.start_time if body else None
     new_goal = Goal(user_id=user.id, addiction_type=goal.addiction_type,
                     custom_label=goal.custom_label, start_date=date.today(),
-                    started_at=datetime.now())
+                    started_at=_started_at(date.today(), st))
     db.add(new_goal)
     await db.commit()
     await db.refresh(new_goal)
