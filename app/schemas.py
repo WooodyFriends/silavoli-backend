@@ -3,11 +3,10 @@ from pydantic import BaseModel, Field
 
 HABIT_PATTERN = r"^(steps|sport|read|water|sleep|calm|nosugar|outdoor)$"
 ADDICTION_PATTERN = r"^(smoke|alcohol|drugs|gamble|custom)$"
-TIME_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 class AuthIn(BaseModel):
     init_data: str = Field(min_length=10)
-    start_param: str | None = None  # параметр из Mini App deep link
+    start_param: str | None = None
 
 class AuthOut(BaseModel):
     token: str
@@ -21,10 +20,10 @@ class GoalIn(BaseModel):
     addiction_type: str = Field(pattern=ADDICTION_PATTERN)
     custom_label: str | None = Field(default=None, max_length=60)
     start_date: date | None = None
-    start_time: str | None = Field(default=None, pattern=TIME_PATTERN)
+    started_at_ts: int | None = None
 
 class RestartIn(BaseModel):
-    start_time: str | None = Field(default=None, pattern=TIME_PATTERN)
+    started_at_ts: int | None = None
 
 class GoalOut(BaseModel):
     id: int
@@ -32,6 +31,7 @@ class GoalOut(BaseModel):
     custom_label: str | None
     start_date: date
     started_at: datetime | None
+    started_at_ts: int | None
     days_clean: int
 
 class StatsOut(BaseModel):
