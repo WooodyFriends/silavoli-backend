@@ -42,6 +42,7 @@ class MeOut(BaseModel):
     habits_today: list[str]
     achievements: list[str]
     stats: StatsOut
+    week: list[int]
 
 class CheckIn(BaseModel):
     habit: str = Field(pattern=HABIT_PATTERN)
