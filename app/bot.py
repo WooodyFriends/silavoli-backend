@@ -1,10 +1,12 @@
-from aiogram import Bot, Dispatcher, Router
+from datetime import datetime, timedelta
+from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import CommandObject, CommandStart
-from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
+from aiogram.types import (KeyboardButton, Message, PreCheckoutQuery,
+                           ReplyKeyboardMarkup, WebAppInfo)
 from sqlalchemy import select
 from .config import settings
 from .db import SessionLocal
-from .models import PendingRef
+from .models import PendingRef, User
 
 bot = Bot(settings.bot_token)
 dp = Dispatcher()
@@ -45,5 +47,24 @@ async def start_ref(message: Message, command: CommandObject):
 @router.message(CommandStart())
 async def start(message: Message):
     await _welcome(message)
+
+# ===== ПЛАТЕЖИ TELEGRAM STARS =====
+
+@router.pre_checkout_query()
+async def pre_checkout(query: PreCheckoutQuery):
+    await query.answer(ok=True)
+
+@router.message(F.successful_payment)
+async def on_payment(message: Message):
+    async with SessionLocal() as db:
+        user = (await db.execute(
+            select(User).where(User.tg_id == message.from_user.id))).scalar_one_or_none()
+        if user:
+            now = datetime.now()
+            base = user.premium_until if (user.premium_until and user.premium_until > now) else now
+            user.premium_until = base + timedelta(days=30)
+            await db.commit()
+    await message.answer("💎 Подписка активна! Спасибо, что веришь в «Силу воли». "
+                         "Премиум-функции уже открыты.")
 
 dp.include_router(router)
