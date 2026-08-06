@@ -16,7 +16,7 @@ async def notify_loop():
         except Exception as e:
             print("[notify] error:", e)
             traceback.print_exc()
-        await asyncio.sleep(300)  # проверка каждые 5 минут
+        await asyncio.sleep(300)  # каждые 5 минут
 
 async def run_notifications():
     now_utc = datetime.now(timezone.utc)
@@ -27,14 +27,21 @@ async def run_notifications():
         for u in users:
             enabled = bool(u.notify_enabled) if u.notify_enabled is not None else True
             if not enabled:
-                print(f"[notify] user {u.tg_id}: disabled, skip")
                 continue
             tz = int(u.tz_offset) if u.tz_offset is not None else 3
             local = now_utc + timedelta(hours=tz)
             nh = int(u.notify_hour) if u.notify_hour is not None else 20
-            print(f"[notify] user {u.tg_id}: local={local.strftime('%H:%M')}, notify_hour={nh}")
+            nm = int(u.notify_minute) if u.notify_minute is not None else 0
+            print(f"[notify] user {u.tg_id}: local={local.strftime('%H:%M')}, target={nh}:{nm:02d}")
+
+            # Проверка: попали в 5-минутное окно
             if local.hour != nh:
                 continue
+            # Разница в минутах (в пределах часа)
+            diff = local.minute - nm
+            if diff < 0 or diff >= 5:
+                continue
+
             if u.last_notify_date == local.date():
                 print(f"[notify] user {u.tg_id}: already notified today")
                 continue
