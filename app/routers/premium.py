@@ -21,8 +21,8 @@ async def info(user: User = Depends(get_current_user)):
 async def create_invoice(user: User = Depends(get_current_user)):
     link = await bot.create_invoice_link(
         title="«Сила воли» — подписка на 30 дней",
-        description="Онлайн-реабилитация: собрания, встречи с психологом, "
-                    "ИИ-помощник без лимитов. Спасибо, что поддерживаешь проект 💚",
+                description="Сообщество поддержки: собрания и группы, встречи с психологом, 12 шагов "
+,
         payload=f"premium_{user.tg_id}",
         currency="XTR",
         prices=[LabeledPrice(label="30 дней", amount=settings.premium_price_stars)],
