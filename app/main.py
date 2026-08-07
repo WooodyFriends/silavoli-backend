@@ -11,13 +11,11 @@ from .config import settings
 from .db import Base, engine, SessionLocal
 from .bot import bot, dp
 from .notifications import notify_loop
-from .routers import auth, friends, habits, me, premium
+from .routers import auth, friends, habits, me, premium, chat
 from .models import User
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("main")
-
-# ===== ОБРАБОТЧИКИ ПЛАТЕЖЕЙ (здесь, чтобы polling их видел) =====
 
 @dp.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery):
@@ -43,7 +41,6 @@ async def on_payment(message: Message):
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # Убираем webhook — будем на polling
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         logger.info("webhook deleted, switching to polling")
@@ -75,3 +72,4 @@ app.include_router(me.router)
 app.include_router(habits.router)
 app.include_router(friends.router)
 app.include_router(premium.router)
+app.include_router(chat.router)
