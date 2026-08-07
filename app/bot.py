@@ -48,17 +48,19 @@ async def start_ref(message: Message, command: CommandObject):
 async def start(message: Message):
     await _welcome(message)
 
-# ===== ПЛАТЕЖИ TELEGRAM STARS =====
+dp.include_router(router)
 
-@router.pre_checkout_query()
+# ===== ПЛАТЕЖИ TELEGRAM STARS — на уровне Dispatcher =====
+
+@dp.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery):
-    print("[pay] pre_checkout_query from", query.from_user.id)
+    print("[pay] pre_checkout_query from", query.from_user.id, "payload:", query.invoice_payload)
     await query.answer(ok=True)
     print("[pay] pre_checkout answered OK")
 
-@router.message(F.successful_payment)
+@dp.message(F.successful_payment)
 async def on_payment(message: Message):
-    print("[pay] successful_payment received")
+    print("[pay] successful_payment received, payload:", message.successful_payment.invoice_payload)
     async with SessionLocal() as db:
         user = (await db.execute(
             select(User).where(User.tg_id == message.from_user.id))).scalar_one_or_none()
@@ -67,7 +69,6 @@ async def on_payment(message: Message):
             base = user.premium_until if (user.premium_until and user.premium_until > now) else now
             user.premium_until = base + timedelta(days=30)
             await db.commit()
+            print("[pay] premium_until updated to", user.premium_until)
     await message.answer("💎 Подписка активна! Спасибо, что веришь в «Силу воли». "
                          "Премиум-функции уже открыты.")
-
-dp.include_router(router)
