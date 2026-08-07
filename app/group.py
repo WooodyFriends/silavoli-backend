@@ -59,12 +59,10 @@ async def kick_user(tg_id: int):
 async def group_handler(message: Message):
     if message.chat.type not in ("group", "supergroup"):
         return
-    # Лог для настройки: ловим id группы
     print(f"[group] chat id: {message.chat.id} from {message.from_user.id}: "
           f"{(message.text or '')[:40]}")
-        if settings.premium_group_id != 0 and message.chat.id != settings.premium_group_id:
+    if settings.premium_group_id != 0 and message.chat.id != settings.premium_group_id:
         return
-
     if message.from_user.is_bot:
         return
 
@@ -78,7 +76,6 @@ async def group_handler(message: Message):
     now = datetime.now()
     is_premium = bool(u and u.premium_until and u.premium_until > now)
 
-    # ===== МОДЕРАЦИЯ: ссылки от не-премиум =====
     if ("t.me/" in low or "http://" in low or "https://" in low) and not is_premium:
         try:
             await message.delete()
@@ -87,7 +84,6 @@ async def group_handler(message: Message):
             print("[group] mod fail:", e)
         return
 
-    # ===== ИИ-ПОДДЕРЖКА =====
     mention = ("@" + settings.bot_username.lower()) in low
     reply_to_bot = bool(message.reply_to_message and message.reply_to_message.from_user
                         and message.reply_to_message.from_user.id == bot.id)
@@ -101,7 +97,7 @@ async def group_handler(message: Message):
         if time.time() - last < COOLDOWN_KEYWORD:
             return
     else:
-        return  # не вмешиваемся в обычные разговоры
+        return
 
     _last_reply[message.from_user.id] = time.time()
     name = message.from_user.first_name or "друг"
