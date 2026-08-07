@@ -1,8 +1,11 @@
-fastapi
+fastapi[standard]
 uvicorn[standard]
 sqlalchemy[asyncio]
 asyncpg
 pydantic
 pydantic-settings
+python-dotenv
 pyjwt
 aiogram
+aiofiles
+groq
