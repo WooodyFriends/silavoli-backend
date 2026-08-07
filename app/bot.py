@@ -1,12 +1,10 @@
-from datetime import datetime, timedelta
-from aiogram import Bot, Dispatcher, F, Router
+from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import CommandObject, CommandStart
-from aiogram.types import (KeyboardButton, Message, PreCheckoutQuery,
-                           ReplyKeyboardMarkup, WebAppInfo)
+from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
 from sqlalchemy import select
 from .config import settings
 from .db import SessionLocal
-from .models import PendingRef, User
+from .models import PendingRef
 
 bot = Bot(settings.bot_token)
 dp = Dispatcher()
@@ -20,7 +18,7 @@ async def _welcome(message: Message):
                            web_app=WebAppInfo(url=settings.mini_app_url))]])
     await message.answer(
         f"Привет, {message.from_user.first_name}! Я бот «Силы воли» 💪\n"
-        "Каждый день без зависимости — победа. Открывай приложение и отмечай прогресс.",
+        "Каждый день без зависимости — победа.",
         reply_markup=kb)
 
 @router.message(CommandStart(deep_link=True))
@@ -39,7 +37,7 @@ async def start_ref(message: Message, command: CommandObject):
                     else:
                         db.add(PendingRef(tg_id=message.from_user.id, referrer_id=referrer))
                     await db.commit()
-                await message.answer("🤝 Ты пришёл по приглашению друга — теперь вы в одной команде!")
+                await message.answer("🤝 Ты по приглашению друга — вы в одной команде!")
         except ValueError:
             pass
     await _welcome(message)
@@ -49,26 +47,3 @@ async def start(message: Message):
     await _welcome(message)
 
 dp.include_router(router)
-
-# ===== ПЛАТЕЖИ TELEGRAM STARS — на уровне Dispatcher =====
-
-@dp.pre_checkout_query()
-async def pre_checkout(query: PreCheckoutQuery):
-    print("[pay] pre_checkout_query from", query.from_user.id, "payload:", query.invoice_payload)
-    await query.answer(ok=True)
-    print("[pay] pre_checkout answered OK")
-
-@dp.message(F.successful_payment)
-async def on_payment(message: Message):
-    print("[pay] successful_payment received, payload:", message.successful_payment.invoice_payload)
-    async with SessionLocal() as db:
-        user = (await db.execute(
-            select(User).where(User.tg_id == message.from_user.id))).scalar_one_or_none()
-        if user:
-            now = datetime.now()
-            base = user.premium_until if (user.premium_until and user.premium_until > now) else now
-            user.premium_until = base + timedelta(days=30)
-            await db.commit()
-            print("[pay] premium_until updated to", user.premium_until)
-    await message.answer("💎 Подписка активна! Спасибо, что веришь в «Силу воли». "
-                         "Премиум-функции уже открыты.")
