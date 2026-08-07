@@ -11,6 +11,7 @@ from .config import settings
 from .db import Base, engine, SessionLocal
 from .bot import bot, dp
 from .notifications import notify_loop
+from .group import router as group_router, send_premium_invite
 from .routers import auth, friends, habits, me, premium, chat
 from .models import User
 
@@ -32,10 +33,12 @@ async def on_payment(message: Message):
             now = datetime.now()
             base = user.premium_until if (user.premium_until and user.premium_until > now) else now
             user.premium_until = base + timedelta(days=30)
+            user.group_kicked = False
             await db.commit()
             print("[pay] premium_until updated to", user.premium_until)
     await message.answer("💎 Подписка активна! Спасибо, что веришь в «Силу воли».\n"
                          "Премиум-функции уже открыты.")
+    await send_premium_invite(message.from_user.id)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,6 +69,9 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.cors_list,
 @app.get("/healthz")
 async def healthz():
     return {"ok": True, "service": "sila-voli"}
+
+# ВАЖНО: сначала регистрируем роутеры бота, потом запускаем polling
+dp.include_router(group_router)
 
 app.include_router(auth.router)
 app.include_router(me.router)
