@@ -52,10 +52,13 @@ async def start(message: Message):
 
 @router.pre_checkout_query()
 async def pre_checkout(query: PreCheckoutQuery):
+    print("[pay] pre_checkout_query from", query.from_user.id)
     await query.answer(ok=True)
+    print("[pay] pre_checkout answered OK")
 
 @router.message(F.successful_payment)
 async def on_payment(message: Message):
+    print("[pay] successful_payment received")
     async with SessionLocal() as db:
         user = (await db.execute(
             select(User).where(User.tg_id == message.from_user.id))).scalar_one_or_none()
