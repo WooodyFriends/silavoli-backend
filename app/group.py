@@ -62,8 +62,9 @@ async def group_handler(message: Message):
     # Лог для настройки: ловим id группы
     print(f"[group] chat id: {message.chat.id} from {message.from_user.id}: "
           f"{(message.text or '')[:40]}")
-    if message.chat.id != settings.premium_group_id:
+        if settings.premium_group_id != 0 and message.chat.id != settings.premium_group_id:
         return
+
     if message.from_user.is_bot:
         return
 
