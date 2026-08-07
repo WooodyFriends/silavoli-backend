@@ -11,6 +11,7 @@ from .notifications import notify_loop
 from .routers import auth, friends, habits, me, premium
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,17 +19,21 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     if settings.public_url:
         try:
-            await bot.set_webhook(f"{settings.public_url}/bot/webhook")
-            logging.info("webhook set")
+            await bot.delete_webhook(drop_pending_updates=True)
+            await bot.set_webhook(
+                f"{settings.public_url}/bot/webhook",
+                allowed_updates=["message", "pre_checkout_query"]
+            )
+            logger.info("webhook set with allowed_updates")
         except Exception as e:
-            logging.warning("webhook: %s", e)
+            logger.warning("webhook: %s", e)
     try:
         bot_me = await bot.get_me()
         if not settings.bot_username:
             settings.bot_username = bot_me.username
-            logging.info("bot username: %s", bot_me.username)
     except Exception as e:
-        logging.warning("get_me: %s", e)
+        logger.warning("get_me: %s", e)
+    logger.info("🌙 starting notification loop")
     task = asyncio.create_task(notify_loop())
     yield
     task.cancel()
@@ -44,16 +49,12 @@ async def healthz():
 @app.post("/bot/webhook")
 async def tg_webhook(request: Request):
     data = await request.json()
-    # Логируем тип приходящего события — увидим, что Telegram реально шлёт
     if "pre_checkout_query" in data:
         print("[webhook] pre_checkout_query:", data)
     elif "message" in data and "successful_payment" in data.get("message", {}):
         print("[webhook] successful_payment:", data)
-    else:
-        print("[webhook] event:", list(data.keys()))
     await dp.feed_update(bot, Update.model_validate(data))
     return {"ok": True}
-
 
 app.include_router(auth.router)
 app.include_router(me.router)
