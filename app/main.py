@@ -43,8 +43,17 @@ async def healthz():
 
 @app.post("/bot/webhook")
 async def tg_webhook(request: Request):
-    await dp.feed_update(bot, Update.model_validate(await request.json()))
+    data = await request.json()
+    # Логируем тип приходящего события — увидим, что Telegram реально шлёт
+    if "pre_checkout_query" in data:
+        print("[webhook] pre_checkout_query:", data)
+    elif "message" in data and "successful_payment" in data.get("message", {}):
+        print("[webhook] successful_payment:", data)
+    else:
+        print("[webhook] event:", list(data.keys()))
+    await dp.feed_update(bot, Update.model_validate(data))
     return {"ok": True}
+
 
 app.include_router(auth.router)
 app.include_router(me.router)
