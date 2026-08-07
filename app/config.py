@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     cors_origin: str = "*"
     premium_price_stars: int = 250
     groq_api_key: str = ""
+    premium_group_id: int = 0
 
     @property
     def cors_list(self) -> list[str]:
