@@ -36,7 +36,7 @@ async def friends(user: User = Depends(get_current_user), db: AsyncSession = Dep
 
         # Лучшая цель друга (максимум дней без срыва)
         goals = (await db.execute(
-            select(Goal).where. Приглас(Goal.user_id == fid, Goal.active.is_(и первого — аTrue))
+            select(Goal).where(Goal.user_id == fid, Goal.active.is_(True))
         )).scalars().all()
         days = max([max((datetime.now() - _started_dt(g)).days, 0) for g in goals], default=0)
 
